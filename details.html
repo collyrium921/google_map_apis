@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Details Display</title>
+    <style>
+        #map {
+            height: 100%;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .wrapper{
+            padding: 5rem 0rem 5rem 3rem;
+            width: 15%;
+            background-color: #1A73E8;
+            box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+
+        }
+
+        .custom-button{
+            appearance: button;
+            background-color: #fff;
+            border: 0;
+            border-radius: 2px;
+            box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            margin: 10px;
+            padding: 0 0.5em;
+            height: 40px;
+            font: 400 18px Roboto, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        input{
+            border: none;
+            padding: 10px;
+            margin: 10px;
+            background-color: #1A73E8;
+            border-bottom: 1px solid white;
+            color: #fff;
+            outline: none;
+            font-size: 18px;
+        }
+
+        ::placeholder{
+            color: #fff;
+            font-size: 18px;
+        }
+
+        #duration, 
+        #distance{
+            color: #fff;
+            font-size: 20px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="wrapper">
+        <div>
+            <input id="input" class="controls" type="text" placeholder="Enter Your Location" oninput="hideLocationButton(this)" />
+        </div>
+        <div>
+            <input id="inputDestination" class="controls" type="text" placeholder="Enter Destination" />
+        </div>
+        <div>
+            <button class="custom-button" onclick="setLocation()">Your current Location</button>
+        </div>
+
+        <div id="distance">            
+        </div>
+        <div id="duration">
+        </div>
+    </div>
+    <script>
+        let map, pos, directionsService, directionsRender, service, directionDisplay, centerSource, marker;
+        function initMap(){
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: 28.7083, lng: 77.6565},
+                zoom: 16,
+                gestureHandling: "cooperative", //prevents zoom on scroll
+                disableDefaultUI: true, //disable pegman, satellite view, zoom
+            });        
+
+            const container = document.getElementsByClassName('wrapper')[0];
+            map.controls[google.maps.ControlPosition.TOP_LEFT].push(container);
+
+            var inputSource = document.getElementById('input');
+            var inputDestination = document.getElementById('inputDestination');
+            var autocompleteSource = new google.maps.places.Autocomplete(inputSource);
+            var autocompleteDestination = new google.maps.places.Autocomplete(inputDestination);
+            inputDestination.addEventListener('change', sourceRoute);
+            inputSource.addEventListener('change', sourceRoute);
+            directionsService = new google.maps.DirectionsService();
+            directionsRender = new google.maps.DirectionsRenderer();
+            directionsRender.setMap(map);
+        }
+
+        function hideLocationButton(self){
+            document.getElementsByTagName('button')[0].style.display = (self.value != "") ? "none" : "block";  
+        }
+
+        function setLocation(){
+            if (navigator.geolocation){
+                    navigator.geolocation.getCurrentPosition(position => {
+                        pos = {lat: position.coords.latitude, lng: position.coords.longitude};
+                        map.setCenter(pos);
+                        marker = new google.maps.Marker({
+                            position: pos,
+                            map: map,
+                        })
+                        document.getElementById('input').value = position.coords.latitude + "," + position.coords.longitude;
+                        centerSource = document.getElementById('input').value;
+                    }, () => {
+                        alert('Give access to Current Position');
+                });
+            }else{
+                alert('Give access to Current Position');
+            }
+        }
+
+        function sourceRoute(){
+            var sourceValue = document.getElementById(event.target.id);
+            const request = {
+                query: sourceValue.value.toLowerCase(),
+                fields: ["name", "geometry"],
+            };
+            service = new google.maps.places.PlacesService(map);
+            service.findPlaceFromQuery(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                    map.setCenter(results[0].geometry.location);
+                }
+                if (sourceValue.id == "input"){
+                    centerSource = {lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng()};
+                    marker = new google.maps.Marker({
+                        position: centerSource,
+                        map: map,
+                });
+                }else {
+                    var center = {lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng()};
+                    calculateAndDisplayRoute(directionsService, directionsRender, center, centerSource);                
+                }
+            }); 
+        }
+
+        function calculateAndDisplayRoute(directionsService, directionsRender, center, source){
+            console.log(center, source);
+            if (center!="" && source!="") {
+                directionsService.route(
+                    {
+                        origin: source,
+                        destination: center,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        unitSystem: google.maps.UnitSystem.IMPERIAL
+                    },
+                    (response, status) => {
+                        if (status == 'OK'){
+                            directionsRender.setDirections(response);
+                            document.getElementById('distance').innerText = "Distance : " +  response["routes"][0]["legs"][0]["distance"]["text"];
+                            document.getElementById('duration').innerText = "Duration : " +  response["routes"][0]["legs"][0]["duration"]["text"];
+                        }else{
+                            window.alert("failed due to "+ status);
+                        }
+                    }
+                );
+            }else {
+                alert('Please fill both the fields!');
+            }
+        }
+    </script>
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyB--snzC2FfJlesk_jgN91e18eMZh4n72c&callback=initMap&libraries=places"></script>
+</body>
+</html>

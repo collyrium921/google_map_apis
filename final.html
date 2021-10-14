@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Path</title>
+    <style>
+        #map {
+            height: 100%;
+        }
+        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        div.wrapper {
+            position: absolute;
+            left: 40px;
+            top: 40px;
+            opacity: .9;
+        }
+        
+        .search-box {
+            position: relative;
+            background: #fff;
+            border-radius: 8px;
+            box-sizing: border-box;
+            width: 392px;
+            height: 48px;
+            border-bottom: 1px solid #DADCE0;
+            padding: 12px 104px 11px 64px;
+            display: block;
+        }
+        
+        input {
+            border: none;
+            font-size: 20px;
+            outline: 0;
+        }
+        
+        .button {
+            width: 20%;
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+        
+        button {
+            width: 100%;
+            background-color: #fff;
+            outline: 0;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .show-directions {
+            display: none;
+            padding: 3rem 3rem 3rem 3rem;
+            border-radius: 5px;
+            /* width: 15%; */
+            background-color: #fff;
+            box-shadow: 2px 4px 5px 1px rgba(0, 0, 0, .30);
+        }
+        
+        .show-directions div input {
+            border: none;
+            padding: 10px;
+            margin: 10px;
+            /* margin-left: 0; */
+            background-color: #fff;
+            border: 1px solid #DADCE0;
+            border-radius: 5px;
+            color: #000;
+            outline: none;
+            font-size: 18px;
+        }
+        
+        #currentLocation {
+            margin: 10px;
+            margin-left: 0;
+            font-size: 20px;
+            cursor: pointer;
+            color: blue;
+        }
+        
+        u {
+            margin-left: 10px;
+        }
+        
+        .icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+        }
+        
+        .dots img {
+            position: absolute;
+            width: 40px;
+            top: 85px;
+            left: 37px;
+        }
+        
+        .flip-icon img {
+            position: absolute;
+            width: 25px;
+            right: 15px;
+            top: 100px;
+            cursor: pointer;
+        }
+        
+        .details div {
+            font-size: 18px;
+            color: #000;
+            margin-left: 50px;
+            margin-top: 10px;
+            font-family: 'Roboto', sans-serif, Arial, Helvetica;
+            font-weight: 600;
+        }
+        
+        .search {
+            width: 20px;
+            position: absolute;
+            left: 30px;
+            top: 13px;
+        }
+        
+        .templates {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="wrapper">
+        <div class="search-box">
+            <div class="input">
+                <img class="search" src="images/search.png" />
+                <input id="searchValue" placeholder="Search for a Location" autofocus="autofocus" oninput="auto()" onchange="showMap()" />
+            </div>
+            <div class="button">
+                <button>
+                    <img src="images/directions.png" title="Get Directions" onclick="getDirections()" />
+                </button>
+            </div>
+        </div>
+
+        <div class="show-directions">
+            <div class="dots">
+                <img src="images/dots.png" />
+            </div>
+            <div class="flip-icon">
+                <img src="images/flipicon.png" onclick="flipLocations()" />
+            </div>
+
+            <div>
+                <span><img src="images/source.png" class="icon" /></span>
+                <input id="inputSource" class="controls" type="text" placeholder="Enter Your Location" oninput="auto(this)" onchange="showMap()" />
+            </div>
+            <div>
+                <span><img src="images/destination.png" class="icon" /></span>
+                <input id="inputDestination" class="controls" type="text" placeholder="Enter Destination" oninput="auto(this)" onchange="showMap()" />
+            </div>
+            <div id="currentLocation" onclick="setLocation()">
+                <span><img src="images/currentLocation.png" class="icon" /></span>
+                <span><u>Your Current Location</u></span>
+            </div>
+            <div class="details">
+                <div id="distance"></div>
+                <div id="duration"></div>
+            </div>
+        </div>
+    </div>
+    <!-- <div class="templates">
+        <div class="infoWindow">
+            <img width="17" height="17" style="margin-right: 15px;" src="images/car.png">
+            <span class="distance" style="font-size:17px; font-weight:600"></span><br />
+            <span class="time" style="font-size:17px; font-weight:600"></span>
+        </div>
+    </div> -->
+    <script>
+        let map, directionsService, directionsRender, destination = "",
+            source = "",
+            marker, pos, infoWindow, flagWindow = false,
+            searchMarker;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {
+                    lat: 28.7083,
+                    lng: 77.6565
+                },
+                zoom: 16,
+                gestureHandling: "cooperative", //prevents zoom on scroll
+                disableDefaultUI: true, //disable pegman, satellite view, zoom
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRender = new google.maps.DirectionsRenderer();
+            directionsRender.setMap(map);
+        }
+
+        function auto(self) {
+            var value = document.getElementById(event.target.id);
+            var autocomplete = new google.maps.places.Autocomplete(value);
+            if (event.target.id == "inputSource") {
+                document.getElementById('currentLocation').style.display = (self.value != "") ? "none" : "block";
+            }
+        }
+
+        function showMap() {
+            var value = document.getElementById(event.target.id);
+            const request = {
+                query: value.value.toLowerCase(),
+                fields: ["name", "geometry"],
+            };
+            const service = new google.maps.places.PlacesService(map);
+            service.findPlaceFromQuery(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                    map.setCenter(results[0].geometry.location);
+                    if (value.id == "searchValue") {
+                        destination = {
+                            lat: results[0].geometry.location.lat(),
+                            lng: results[0].geometry.location.lng()
+                        };
+                        searchMarker = new google.maps.Marker({
+                            position: destination,
+                            map: map,
+                        });
+                    } else if (value.id == 'inputSource' || value.id == "inputDestination") {
+                        if (document.getElementById("inputSource").value != "" && document.getElementById("inputDestination").value != "") {
+                            source = document.getElementById("inputSource").value;
+                            destination = document.getElementById("inputDestination").value;
+                            calculateAndDisplayRoute(directionsService, directionsRender, source, destination);
+                        } else {
+                            source = {
+                                lat: results[0].geometry.location.lat(),
+                                lng: results[0].geometry.location.lng()
+                            };
+                            marker = new google.maps.Marker({
+                                position: source,
+                                map: map,
+                            });
+                        }
+                    }
+                } else {
+                    alert('Failed!');
+                }
+            });
+        }
+
+        function getDirections() {
+            document.getElementsByClassName('search-box')[0].style.display = "none";
+            document.getElementsByClassName('show-directions')[0].style.display = "block";
+            document.getElementById('inputDestination').value = document.getElementById('searchValue').value;
+        }
+
+        function setLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    map.setCenter(pos);
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                    });
+                    document.getElementById('inputSource').value = position.coords.latitude + "," + position.coords.longitude;
+                    source = document.getElementById('inputSource').value;
+                    if (destination !== "") {
+                        calculateAndDisplayRoute(directionsService, directionsRender, source, destination);
+                    }
+                });
+            }
+        }
+
+        function calculateAndDisplayRoute(directionsService, directionsRender, source, destination) {
+            if (flagWindow == true) {
+                infoWindow.close();
+                flagWindow = false;
+            }
+
+            var dis, time;
+            directionsService.route({
+                    origin: source,
+                    destination: destination,
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    unitSystem: google.maps.UnitSystem.METRIC
+                },
+                (response, status) => {
+                    if (status == 'OK') {
+                        dis = response["routes"][0]["legs"][0]["distance"]["text"];
+                        time = response["routes"][0]["legs"][0]["duration"]["text"]
+                        var infoWindowTemplate = document.getElementsByClassName("infoWindow")[0];
+                        directionsRender.setDirections(response);
+                        infoWindow = new google.maps.InfoWindow({
+                            content: '<img width="17" height="17" style="margin-right: 15px;" src="images/car.png">' + '<span style="font-size:17px; font-weight:600">' + dis + ', ' + '<br />' + time + '</span>',
+                            position: source,
+                            maxWidth: '100px',
+                        });
+                        document.getElementById('distance').innerText = "Distance: " + dis;
+                        document.getElementById('duration').innerText = "ETA: " + time;
+                        infoWindow.open(map);
+                        flagWindow = true;
+                        marker.visible = false;
+                        if (searchMarker && searchMarker.setMap) {
+                            searchMarker.setMap(null);
+                        }
+                    } else {
+                        window.alert("failed due to " + status);
+                    }
+                }
+            );
+        }
+
+        function flipLocations() {
+            var temp, tempValue;
+            temp = source;
+            source = destination;
+            destination = temp;
+            tempValue = document.getElementById('inputSource').value;
+            document.getElementById('inputSource').value = document.getElementById('inputDestination').value;
+            document.getElementById('inputDestination').value = tempValue;
+            calculateAndDisplayRoute(directionsService, directionsRender, source, destination);
+        }
+    </script>
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true&key=AIzaSyB--snzC2FfJlesk_jgN91e18eMZh4n72c&callback=initMap&libraries=places"></script>
+</body>
+
+</html>

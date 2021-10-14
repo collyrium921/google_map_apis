@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Display Data</title>
+  <style>
+    	html, body, #map_canvas {
+        height: 100%;
+        width: 100%;
+        margin: 0px;
+        padding: 0px
+		}
+  </style>
+</head>
+
+<body>
+  <button id="animate">Redo Animation</button>
+  <div id="map_canvas" style="width: 100%;height: 100%"></div>
+  <script type="text/javascript">
+    var markers = [{
+      "title": 'Alibaug',
+      "lat": '18.6581725',
+      "lng": '72.8637616',
+      "description": 'Alibaug is a coastal town and a municipal council in Raigad District in the Konkan region of Maharashtra, India.'
+    }, {
+      "title": 'Mumbai',
+      "lat": '19.0458547',
+      "lng": '72.9434202',
+      "description": 'Mumbai formerly Bombay, is the capital city of the Indian state of Maharashtra.'
+    }
+  ];
+
+    function animatePath(map, route, marker, pathCoords) {
+      var index = 0;
+      route.setPath([]);
+      for (var index = 0; index < pathCoords.length; index++)
+        setTimeout(function(offset) {
+          route.getPath().push(pathCoords.getAt(offset));
+          marker.setPosition(pathCoords.getAt(offset));
+          map.panTo(pathCoords.getAt(offset));
+        }, index * 30, index);
+    }
+
+    function initialize() {
+      var mapOptions = {
+        center: new google.maps.LatLng(markers[0].lat, markers[0].lng),
+        zoom: 20,
+        // mapTypeId: google.maps.MapTypeId.ROADMAP
+      };
+
+      var map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+
+      var infoWindow = new google.maps.InfoWindow();
+      var latlngbounds = new google.maps.LatLngBounds();
+      for (i = 0; i < markers.length; i++) {
+        var data = markers[i];
+        markers[i].latLng = new google.maps.LatLng(data.lat, data.lng);
+        var marker = new google.maps.Marker({
+          position: markers[i].latLng,
+          map: map,
+          title: data.title
+        });
+        marker.description = markers[i].description;
+        latlngbounds.extend(marker.position);
+        google.maps.event.addListener(marker, "click", function(e) {
+          infoWindow.setContent(this.description);
+          infoWindow.open(map, this);
+        });
+      }
+      map.setCenter(latlngbounds.getCenter());
+      map.fitBounds(latlngbounds);
+
+      //Initialize the Path Array
+      var path = new google.maps.MVCArray();
+
+      //Initialize the Direction Service
+      var service = new google.maps.DirectionsService();
+
+      // Get the route between the points on the map
+      var wayPoints = [];
+      for (var i = 1; i < markers.length - 1; i++) {
+        wayPoints.push({
+          location: markers[i].latLng,
+          stopover: false
+        });
+      }
+      //Initialize the path
+      var poly = new google.maps.Polyline({
+        map: map,
+        strokeColor: '#4986E7'
+      });
+      var traceMarker = new google.maps.Marker({
+        map: map,
+        icon: "http://maps.google.com/mapfiles/ms/micons/blue.png"
+      });
+
+      if (markers.length >= 2) {
+        service.route({
+          origin: markers[0].latLng,
+          destination: markers[markers.length - 1].latLng,
+          waypoints: wayPoints,
+          travelMode: google.maps.DirectionsTravelMode.DRIVING
+        }, function(result, status) {
+          if (status == google.maps.DirectionsStatus.OK) {
+            for (var j = 0, len = result.routes[0].overview_path.length; j < len; j++) {
+              path.push(result.routes[0].overview_path[j]);
+            }
+            animatePath(map, poly, traceMarker, path);
+          }
+        });
+      }
+
+      document.getElementById("animate").addEventListener("click", function() {
+        // Animate the path when the button is clicked
+        animatePath(map, poly, traceMarker, path);
+      });
+    };
+  </script>
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyB--snzC2FfJlesk_jgN91e18eMZh4n72c&callback=initialize"></script>
+
+    <!-- <script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyB5FtEARwzlj3LRJkYmcbZ7vRRaO0oCRj4&sensor=false&callback=initialize"></script> -->
+  
+    <!-- <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&callback=initialize"></script> -->
+</body>
+</html>
